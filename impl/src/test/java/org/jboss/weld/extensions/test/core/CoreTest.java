@@ -17,7 +17,9 @@
 package org.jboss.weld.extensions.test.core;
 
 import static org.jboss.weld.extensions.test.util.Deployments.baseDeployment;
+import static org.junit.Assert.assertEquals;
 
+import java.beans.Introspector;
 import java.util.Set;
 
 import javax.enterprise.context.spi.CreationalContext;
@@ -79,5 +81,21 @@ public class CoreTest
       Set<Bean<?>> beans = manager.getBeans("raceTrack");
       Assert.assertEquals(1, beans.size());
    }
+   
+   @Test
+   public void testQualified(BeanManager manager)
+   {
+      assertEquals(1, manager.getBeans(Introspector.decapitalize(NamedBean.class.getSimpleName())).size());
+      assertEquals(1, manager.getBeans(qualify(QualifiedNamedBean.class, QualifiedNamedBean.class.getSimpleName(), true)).size());
+      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, QualifiedModelBean.class.getSimpleName(), true)).size());
+      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "wordOfTheDay", false)).size());
+      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "model", false)).size());
+      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "size", false)).size());
+      assertEquals(1, manager.getBeans(qualify(QualifiedCustomNamedBean.class, "custom", false)).size());
+   }
 
+   private String qualify(Class<?> type, String name, boolean decapitalize)
+   {
+      return type.getPackage().getName() + "." + (decapitalize ? Introspector.decapitalize(name) : name);
+   }
 }

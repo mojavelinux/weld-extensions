@@ -16,15 +16,18 @@
  */
 package org.jboss.weld.extensions.core;
 
+import java.beans.Introspector;
 import java.util.ArrayList;
 import java.util.Collection;
 
 import javax.enterprise.event.Observes;
+import javax.enterprise.inject.Produces;
 import javax.enterprise.inject.spi.AfterBeanDiscovery;
 import javax.enterprise.inject.spi.AnnotatedConstructor;
 import javax.enterprise.inject.spi.AnnotatedField;
 import javax.enterprise.inject.spi.AnnotatedMethod;
 import javax.enterprise.inject.spi.AnnotatedParameter;
+import javax.enterprise.inject.spi.AnnotatedType;
 import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.BeanManager;
 import javax.enterprise.inject.spi.Extension;
@@ -32,6 +35,7 @@ import javax.enterprise.inject.spi.ProcessAnnotatedType;
 import javax.inject.Named;
 
 import org.jboss.weld.extensions.literal.NamedLiteral;
+import org.jboss.weld.extensions.properties.Properties;
 import org.jboss.weld.extensions.reflection.Reflections;
 import org.jboss.weld.extensions.reflection.annotated.AnnotatedTypeBuilder;
 import org.slf4j.Logger;
@@ -41,10 +45,10 @@ import org.slf4j.LoggerFactory;
  * Extension to install the "core" extensions. Core extensions are those that
  * add additional abilities to CDI applications via annotations.
  * 
- * @author Stuart
+ * @author Stuart Douglas
  * @author Pete Muir
+ * @author Dan Allen
  * @author Gavin King
- * 
  */
 public class CoreExtension implements Extension
 {
@@ -60,33 +64,36 @@ public class CoreExtension implements Extension
 
    <X> void processAnnotatedType(@Observes final ProcessAnnotatedType<X> pat, BeanManager beanManager)
    {
+      AnnotatedType<X> annotatedType = pat.getAnnotatedType();
+      Class<X> javaClass = annotatedType.getJavaClass();
+      
       // Support for @Veto
-      if (pat.getAnnotatedType().isAnnotationPresent(Veto.class))
+      if (annotatedType.isAnnotationPresent(Veto.class))
       {
          pat.veto();
-         log.info("Preventing " + pat.getAnnotatedType().getJavaClass() + " from being installed as bean due to @Veto annotation");
+         log.info("Preventing " + javaClass + " from being installed as bean due to @Veto annotation");
          return;
       }
 
       // support for @Requires
-      if (pat.getAnnotatedType().isAnnotationPresent(Requires.class))
+      if (annotatedType.isAnnotationPresent(Requires.class))
       {
-         String[] classes = pat.getAnnotatedType().getAnnotation(Requires.class).value();
+         String[] classes = annotatedType.getAnnotation(Requires.class).value();
          for (String i : classes)
          {
             try
             {
-               Reflections.classForName(i, pat.getAnnotatedType().getJavaClass().getClassLoader());
+               Reflections.classForName(i, javaClass.getClassLoader());
             }
             catch (ClassNotFoundException e)
             {
-               log.info("Preventing " + pat.getAnnotatedType().getJavaClass() + " from being installed as required class " + i + " could not be found");
+               log.info("Preventing " + javaClass + " from being installed as required class " + i + " could not be found");
                pat.veto();
             }
             catch (LinkageError e)
             {
                // LinkageError is a superclass of NoClassDefFoundError
-               log.info("Preventing " + pat.getAnnotatedType().getJavaClass() + " from being installed as a linkage error occurred loading required class " + i + ". The linkage error was " + e.toString());
+               log.info("Preventing " + javaClass + " from being installed as a linkage error occurred loading required class " + i + ". The linkage error was " + e.toString());
                pat.veto();
             }
          }
@@ -95,58 +102,93 @@ public class CoreExtension implements Extension
       AnnotatedTypeBuilder<X> builder = null;
 
       // support for @Named packages
-      Package pkg = pat.getAnnotatedType().getJavaClass().getPackage();
-      if (pkg.isAnnotationPresent(Named.class) && !pat.getAnnotatedType().isAnnotationPresent(Named.class))
+      Package pkg = javaClass.getPackage();
+      Named syntheticNamed = null;
+      if (pkg.isAnnotationPresent(Named.class) && !annotatedType.isAnnotationPresent(Named.class))
       {
-         if (builder == null)
+         builder = initializeBuilder(builder, annotatedType);
+         syntheticNamed = new NamedLiteral();
+         builder.addToClass(syntheticNamed);
+      }
+      
+      // support for @Qualified bean names on type (respect @Named if added by previous operation)
+      if ((syntheticNamed != null || annotatedType.isAnnotationPresent(Named.class)) && annotatedType.isAnnotationPresent(Qualified.class))
+      {
+         builder = initializeBuilder(builder, annotatedType);
+         String name = (syntheticNamed != null ? syntheticNamed.value() : annotatedType.getAnnotation(Named.class).value());
+         if (name.length() == 0)
          {
-            builder = new AnnotatedTypeBuilder<X>().readFromType(pat.getAnnotatedType());
+            name = Introspector.decapitalize(javaClass.getSimpleName());
          }
-         builder.addToClass(new NamedLiteral(""));
+         builder.removeFromClass(Named.class); // add w/o remove was failing in cases
+         builder.addToClass(new NamedLiteral(qualify(javaClass.getPackage(), name)));
       }
 
-      // support for @Exact
-      // fields
-      for (AnnotatedField<? super X> f : pat.getAnnotatedType().getFields())
+      // support for @Exact fields
+      // support for @Qualified named producer fields
+      for (AnnotatedField<? super X> f : annotatedType.getFields())
       {
          if (f.isAnnotationPresent(Exact.class))
          {
             Class<?> type = f.getAnnotation(Exact.class).value();
-            if (builder == null)
-            {
-               builder = new AnnotatedTypeBuilder<X>().readFromType(pat.getAnnotatedType());
-            }
+            builder = initializeBuilder(builder, annotatedType);
             builder.overrideFieldType(f, type);
          }
+         
+         if (f.isAnnotationPresent(Produces.class) && f.isAnnotationPresent(Named.class) &&
+               f.isAnnotationPresent(Qualified.class))
+         {
+            String name = f.getAnnotation(Named.class).value();
+            if (name.length() == 0)
+            {
+               name = f.getJavaMember().getName();
+            }
+            builder.removeFromField(f, Named.class); // add w/o remove was failing in cases
+            builder.addToField(f, new NamedLiteral(qualify(javaClass.getPackage(), name)));
+         }
       }
-      // method parameters
-      for (AnnotatedMethod<? super X> m : pat.getAnnotatedType().getMethods())
+      // support for @Exact method parameters
+      // support for @Qualified named producer methods
+      for (AnnotatedMethod<? super X> m : annotatedType.getMethods())
       {
          for (AnnotatedParameter<? super X> p : m.getParameters())
          {
             if (p.isAnnotationPresent(Exact.class))
             {
                Class<?> type = p.getAnnotation(Exact.class).value();
-               if (builder == null)
-               {
-                  builder = new AnnotatedTypeBuilder<X>().readFromType(pat.getAnnotatedType());
-               }
+               builder = initializeBuilder(builder, annotatedType);
                builder.overrideParameterType(p, type);
             }
          }
+         
+         if (m.isAnnotationPresent(Produces.class) && m.isAnnotationPresent(Named.class) &&
+               m.isAnnotationPresent(Qualified.class))
+         {
+            String name = m.getAnnotation(Named.class).value();
+            if (name.length() == 0)
+            {
+               if (Properties.isProperty(m.getJavaMember()))
+               {
+                  name = Properties.createProperty(m.getJavaMember()).getName();
+               }
+               else
+               {
+                  name = m.getJavaMember().getName();
+               }
+            }
+            builder.removeFromMethod(m, Named.class); // add w/o remove was failing in cases
+            builder.addToMethod(m, new NamedLiteral(qualify(javaClass.getPackage(), name)));
+         }
       }
-      // constructor parameters
-      for (AnnotatedConstructor<X> c : pat.getAnnotatedType().getConstructors())
+      // support for @Exact constructor parameters
+      for (AnnotatedConstructor<X> c : annotatedType.getConstructors())
       {
          for (AnnotatedParameter<? super X> p : c.getParameters())
          {
             if (p.isAnnotationPresent(Exact.class))
             {
                Class<?> type = p.getAnnotation(Exact.class).value();
-               if (builder == null)
-               {
-                  builder = new AnnotatedTypeBuilder<X>().readFromType(pat.getAnnotatedType());
-               }
+               builder = initializeBuilder(builder, annotatedType);
                builder.overrideParameterType(p, type);
             }
          }
@@ -163,6 +205,20 @@ public class CoreExtension implements Extension
       {
          abd.addBean(bean);
       }
+   }
+   
+   private <X> AnnotatedTypeBuilder<X> initializeBuilder(final AnnotatedTypeBuilder<X> currentBuilder, final AnnotatedType<X> source)
+   {
+      if (currentBuilder == null)
+      {
+         return new AnnotatedTypeBuilder<X>().readFromType(source);
+      }
+      return currentBuilder;
+   }
+   
+   private String qualify(final Package pkg, final String name)
+   {
+      return pkg.getName() + "." + name;
    }
 
 }
