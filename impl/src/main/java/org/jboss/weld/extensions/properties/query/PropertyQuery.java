@@ -67,6 +67,7 @@ public class PropertyQuery<V>
     * An exception is thrown if the query does not return exactly one
     * result.
     * 
+    * @throws RuntimeException if the query does not return exactly one result
     * @return the single result
     */
    public Property<V> getSingleResult()
