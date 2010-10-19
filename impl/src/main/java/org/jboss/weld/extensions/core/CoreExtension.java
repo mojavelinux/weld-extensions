@@ -107,7 +107,15 @@ public class CoreExtension implements Extension
       if (pkg.isAnnotationPresent(Named.class) && !annotatedType.isAnnotationPresent(Named.class))
       {
          builder = initializeBuilder(builder, annotatedType);
-         syntheticNamed = new NamedLiteral();
+         if (pkg.isAnnotationPresent(Qualified.class))
+         {
+            Package targetPackage = resolvePackage(pkg.getAnnotation(Qualified.class), pkg);
+            syntheticNamed = new NamedLiteral(qualify(targetPackage, Introspector.decapitalize(javaClass.getSimpleName())));
+         }
+         else
+         {
+            syntheticNamed = new NamedLiteral();
+         }
          builder.addToClass(syntheticNamed);
       }
       
@@ -120,8 +128,9 @@ public class CoreExtension implements Extension
          {
             name = Introspector.decapitalize(javaClass.getSimpleName());
          }
+         Package targetPackage = resolvePackage(annotatedType.getAnnotation(Qualified.class), pkg);
          builder.removeFromClass(Named.class); // add w/o remove was failing in cases
-         builder.addToClass(new NamedLiteral(qualify(javaClass.getPackage(), name)));
+         builder.addToClass(new NamedLiteral(qualify(targetPackage, name)));
       }
 
       // support for @Exact fields
@@ -143,8 +152,9 @@ public class CoreExtension implements Extension
             {
                name = f.getJavaMember().getName();
             }
+            Package targetPackage = resolvePackage(f.getAnnotation(Qualified.class), pkg);
             builder.removeFromField(f, Named.class); // add w/o remove was failing in cases
-            builder.addToField(f, new NamedLiteral(qualify(javaClass.getPackage(), name)));
+            builder.addToField(f, new NamedLiteral(qualify(targetPackage, name)));
          }
       }
       // support for @Exact method parameters
@@ -176,8 +186,9 @@ public class CoreExtension implements Extension
                   name = m.getJavaMember().getName();
                }
             }
+            Package targetPackage = resolvePackage(m.getAnnotation(Qualified.class), pkg);
             builder.removeFromMethod(m, Named.class); // add w/o remove was failing in cases
-            builder.addToMethod(m, new NamedLiteral(qualify(javaClass.getPackage(), name)));
+            builder.addToMethod(m, new NamedLiteral(qualify(targetPackage, name)));
          }
       }
       // support for @Exact constructor parameters
@@ -221,4 +232,15 @@ public class CoreExtension implements Extension
       return pkg.getName() + "." + name;
    }
 
+   private Package resolvePackage(final Qualified qualified, final Package currentPackage)
+   {
+      if (qualified.value() == Class.class)
+      {
+         return currentPackage;
+      }
+      else
+      {
+         return qualified.value().getPackage();
+      }
+   }
 }

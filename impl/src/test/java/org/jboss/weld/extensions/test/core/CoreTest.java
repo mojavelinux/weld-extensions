@@ -32,6 +32,7 @@ import junit.framework.Assert;
 import org.jboss.arquillian.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.weld.extensions.core.CoreExtension;
 import org.jboss.weld.extensions.literal.DefaultLiteral;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -92,6 +93,7 @@ public class CoreTest
       assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "model", false)).size());
       assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "size", false)).size());
       assertEquals(1, manager.getBeans(qualify(QualifiedCustomNamedBean.class, "custom", false)).size());
+      assertEquals(1, manager.getBeans(qualify(CoreExtension.class, QualifiedToTargetClassNamedBean.class.getSimpleName(), true)).size());
    }
 
    private String qualify(Class<?> type, String name, boolean decapitalize)

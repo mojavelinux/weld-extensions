@@ -18,4 +18,10 @@ import java.lang.annotation.Target;
 @Documented
 public @interface Qualified
 {
+   /**
+    * A class from the package that should be used as the namespace
+    * that is prepended to the bean name. The special value
+    * {@link Class}.class specifies that the current package should be used.
+    */
+   Class<?> value() default Class.class;
 }
