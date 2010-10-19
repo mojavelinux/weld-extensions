@@ -34,6 +34,7 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.weld.extensions.core.CoreExtension;
 import org.jboss.weld.extensions.literal.DefaultLiteral;
+import org.jboss.weld.extensions.test.core.fullyqualified.FullyQualifiedFromPackageNamedBean;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -48,7 +49,8 @@ public class CoreTest
    @Deployment
    public static Archive<?> deployment()
    {
-      return baseDeployment().addPackage(CoreTest.class.getPackage());
+      return baseDeployment().addPackage(CoreTest.class.getPackage())
+            .addPackage(FullyQualifiedFromPackageNamedBean.class.getPackage());
    }
 
    @Inject
@@ -84,20 +86,36 @@ public class CoreTest
    }
    
    @Test
-   public void testQualified(BeanManager manager)
+   public void testFullyQualifiedBeanNames(BeanManager manager)
    {
-      assertEquals(1, manager.getBeans(Introspector.decapitalize(NamedBean.class.getSimpleName())).size());
-      assertEquals(1, manager.getBeans(qualify(QualifiedNamedBean.class, QualifiedNamedBean.class.getSimpleName(), true)).size());
-      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, QualifiedModelBean.class.getSimpleName(), true)).size());
-      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "wordOfTheDay", false)).size());
-      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "model", false)).size());
-      assertEquals(1, manager.getBeans(qualify(QualifiedModelBean.class, "size", false)).size());
-      assertEquals(1, manager.getBeans(qualify(QualifiedCustomNamedBean.class, "custom", false)).size());
-      assertEquals(1, manager.getBeans(qualify(CoreExtension.class, QualifiedToTargetClassNamedBean.class.getSimpleName(), true)).size());
+      assertEquals(1, manager.getBeans(getBeanNameForType(NamedBean.class)).size());
+      assertEquals(1, manager.getBeans(getQualifiedBeanNameForType(FullyQualifiedNamedBean.class)).size());
+      assertEquals(1, manager.getBeans(getQualifiedBeanNameForType(FullyQualifiedModelBean.class)).size());
+      assertEquals(1, manager.getBeans(qualifyBeanName("wordOfTheDay", FullyQualifiedModelBean.class.getPackage())).size());
+      assertEquals(1, manager.getBeans(qualifyBeanName("model", FullyQualifiedModelBean.class.getPackage())).size());
+      assertEquals(1, manager.getBeans(qualifyBeanName("size", FullyQualifiedModelBean.class.getPackage())).size());
+      assertEquals(1, manager.getBeans(qualifyBeanName("custom", FullyQualifiedCustomNamedBean.class.getPackage())).size());
+      assertEquals(1, manager.getBeans(getQualifiedBeanNameForType(FullyQualifiedToTargetNamedBean.class, CoreExtension.class.getPackage())).size());
+      assertEquals(1, manager.getBeans(getQualifiedBeanNameForType(FullyQualifiedFromPackageNamedBean.class)).size());
    }
 
-   private String qualify(Class<?> type, String name, boolean decapitalize)
+   private String getQualifiedBeanNameForType(Class<?> type, Package targetPackage)
    {
-      return type.getPackage().getName() + "." + (decapitalize ? Introspector.decapitalize(name) : name);
+      return targetPackage.getName() + "." + getBeanNameForType(type);
+   }
+   
+   private String getQualifiedBeanNameForType(Class<?> type)
+   {
+      return qualifyBeanName(getBeanNameForType(type), type.getPackage());
+   }
+   
+   private String getBeanNameForType(Class<?> type)
+   {
+      return Introspector.decapitalize(type.getSimpleName());
+   }
+   
+   private String qualifyBeanName(String name, Package pkg)
+   {
+      return pkg.getName() + "." + name;
    }
 }

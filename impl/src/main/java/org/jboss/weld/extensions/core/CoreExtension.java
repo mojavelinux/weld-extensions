@@ -103,38 +103,32 @@ public class CoreExtension implements Extension
 
       // support for @Named packages
       Package pkg = javaClass.getPackage();
-      Named syntheticNamed = null;
+      Named namedFromPackage = null;
       if (pkg.isAnnotationPresent(Named.class) && !annotatedType.isAnnotationPresent(Named.class))
       {
          builder = initializeBuilder(builder, annotatedType);
-         if (pkg.isAnnotationPresent(Qualified.class))
-         {
-            Package targetPackage = resolvePackage(pkg.getAnnotation(Qualified.class), pkg);
-            syntheticNamed = new NamedLiteral(qualify(targetPackage, Introspector.decapitalize(javaClass.getSimpleName())));
-         }
-         else
-         {
-            syntheticNamed = new NamedLiteral();
-         }
-         builder.addToClass(syntheticNamed);
+         namedFromPackage = new NamedLiteral();
+         builder.addToClass(namedFromPackage);
       }
       
-      // support for @Qualified bean names on type (respect @Named if added by previous operation)
-      if ((syntheticNamed != null || annotatedType.isAnnotationPresent(Named.class)) && annotatedType.isAnnotationPresent(Qualified.class))
+      FullyQualified qualifiedOnPackage = pkg.getAnnotation(FullyQualified.class);
+      // support for @FullyQualified bean names on type (respect @Named if added by previous operation)
+      if ((namedFromPackage != null || annotatedType.isAnnotationPresent(Named.class)) &&
+            (qualifiedOnPackage != null || annotatedType.isAnnotationPresent(FullyQualified.class)))
       {
          builder = initializeBuilder(builder, annotatedType);
-         String name = (syntheticNamed != null ? syntheticNamed.value() : annotatedType.getAnnotation(Named.class).value());
+         String name = (namedFromPackage != null ? namedFromPackage.value() : annotatedType.getAnnotation(Named.class).value());
          if (name.length() == 0)
          {
-            name = Introspector.decapitalize(javaClass.getSimpleName());
+            name = deriveBeanNameForType(javaClass);
          }
-         Package targetPackage = resolvePackage(annotatedType.getAnnotation(Qualified.class), pkg);
+         Package targetPackage = resolveTargetPackage(annotatedType.getAnnotation(FullyQualified.class), qualifiedOnPackage, pkg);
          builder.removeFromClass(Named.class); // add w/o remove was failing in cases
          builder.addToClass(new NamedLiteral(qualify(targetPackage, name)));
       }
 
       // support for @Exact fields
-      // support for @Qualified named producer fields
+      // support for @FullyQualified @Named producer fields
       for (AnnotatedField<? super X> f : annotatedType.getFields())
       {
          if (f.isAnnotationPresent(Exact.class))
@@ -145,20 +139,20 @@ public class CoreExtension implements Extension
          }
          
          if (f.isAnnotationPresent(Produces.class) && f.isAnnotationPresent(Named.class) &&
-               f.isAnnotationPresent(Qualified.class))
+               (qualifiedOnPackage != null || f.isAnnotationPresent(FullyQualified.class)))
          {
             String name = f.getAnnotation(Named.class).value();
             if (name.length() == 0)
             {
                name = f.getJavaMember().getName();
             }
-            Package targetPackage = resolvePackage(f.getAnnotation(Qualified.class), pkg);
+            Package targetPackage = resolveTargetPackage(f.getAnnotation(FullyQualified.class), qualifiedOnPackage, pkg);
             builder.removeFromField(f, Named.class); // add w/o remove was failing in cases
             builder.addToField(f, new NamedLiteral(qualify(targetPackage, name)));
          }
       }
       // support for @Exact method parameters
-      // support for @Qualified named producer methods
+      // support for @FullyQualified @Named producer methods
       for (AnnotatedMethod<? super X> m : annotatedType.getMethods())
       {
          for (AnnotatedParameter<? super X> p : m.getParameters())
@@ -172,7 +166,7 @@ public class CoreExtension implements Extension
          }
          
          if (m.isAnnotationPresent(Produces.class) && m.isAnnotationPresent(Named.class) &&
-               m.isAnnotationPresent(Qualified.class))
+               (qualifiedOnPackage != null || m.isAnnotationPresent(FullyQualified.class)))
          {
             String name = m.getAnnotation(Named.class).value();
             if (name.length() == 0)
@@ -186,7 +180,7 @@ public class CoreExtension implements Extension
                   name = m.getJavaMember().getName();
                }
             }
-            Package targetPackage = resolvePackage(m.getAnnotation(Qualified.class), pkg);
+            Package targetPackage = resolveTargetPackage(m.getAnnotation(FullyQualified.class), qualifiedOnPackage, pkg);
             builder.removeFromMethod(m, Named.class); // add w/o remove was failing in cases
             builder.addToMethod(m, new NamedLiteral(qualify(targetPackage, name)));
          }
@@ -231,9 +225,10 @@ public class CoreExtension implements Extension
    {
       return pkg.getName() + "." + name;
    }
-
-   private Package resolvePackage(final Qualified qualified, final Package currentPackage)
+   
+   private Package resolveTargetPackage(final FullyQualified qualifiedOnElement, final FullyQualified qualifiedOnPackage, final Package currentPackage)
    {
+      FullyQualified qualified = qualifiedOnElement != null ? qualifiedOnElement : qualifiedOnPackage;
       if (qualified.value() == Class.class)
       {
          return currentPackage;
@@ -242,5 +237,10 @@ public class CoreExtension implements Extension
       {
          return qualified.value().getPackage();
       }
+   }
+   
+   private String deriveBeanNameForType(Class<?> type)
+   {
+      return Introspector.decapitalize(type.getSimpleName());
    }
 }

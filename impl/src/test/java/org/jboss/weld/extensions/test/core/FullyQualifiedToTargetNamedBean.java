@@ -3,10 +3,10 @@ package org.jboss.weld.extensions.test.core;
 import javax.inject.Named;
 
 import org.jboss.weld.extensions.core.CoreExtension;
-import org.jboss.weld.extensions.core.Qualified;
+import org.jboss.weld.extensions.core.FullyQualified;
 
-@Qualified(CoreExtension.class)
+@FullyQualified(CoreExtension.class)
 @Named
-public class QualifiedToTargetClassNamedBean
+public class FullyQualifiedToTargetNamedBean
 {
 }

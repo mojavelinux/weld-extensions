@@ -4,22 +4,22 @@ import javax.enterprise.inject.Model;
 import javax.enterprise.inject.Produces;
 import javax.inject.Named;
 
-import org.jboss.weld.extensions.core.Qualified;
+import org.jboss.weld.extensions.core.FullyQualified;
 
-@Qualified
+@FullyQualified
 @Model
-public class QualifiedModelBean
+public class FullyQualifiedModelBean
 {
-   @Produces @Qualified @Named
+   @Produces @FullyQualified @Named
    private boolean model = true;
    
-   @Produces @Qualified @Named
+   @Produces @FullyQualified @Named
    public String getWordOfTheDay()
    {
       return "Dragon";
    }
    
-   @Produces @Qualified @Named
+   @Produces @FullyQualified @Named
    public Integer size()
    {
       return 0;
