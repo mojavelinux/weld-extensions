@@ -30,6 +30,10 @@ import javax.enterprise.inject.Produces;
 import javax.enterprise.inject.spi.InjectionPoint;
 import javax.inject.Inject;
 
+import org.jboss.shrinkwrap.descriptor.api.spec.cdi.beans.BeansDescriptor;
+import org.jboss.shrinkwrap.descriptor.api.spec.jpa.persistence.PersistenceDescriptor;
+import org.jboss.shrinkwrap.descriptor.api.spec.servlet.web.WebAppDescriptor;
+
 
 /**
  * Resource producer allows injecting of resources.
@@ -113,6 +117,51 @@ class ResourceProducer
    {
       String name = getName(injectionPoint);
       return resourceLoaderManager.getPropertiesBundles(name);
+   }
+   
+   @Produces @Resource("")
+   WebAppDescriptor loadWebAppDescriptor(InjectionPoint injectionPoint)
+   {
+      String name = getName(injectionPoint);
+      return resourceLoaderManager.getDescriptor(name, WebAppDescriptor.class);
+   }
+   
+   @Produces @StandardResource
+   WebAppDescriptor loadStandardWebAppDescriptor(InjectionPoint injectionPoint)
+   {
+      return resourceLoaderManager.getDescriptor("WEB-INF/web.xml", WebAppDescriptor.class);
+   }
+   
+   @Produces @Resource("")
+   BeansDescriptor loadBeansDescriptor(InjectionPoint injectionPoint)
+   {
+      String name = getName(injectionPoint);
+      return resourceLoaderManager.getDescriptor(name, BeansDescriptor.class);
+   }
+   
+   @Produces @StandardResource
+   BeansDescriptor loadStandardBeansDescriptor(InjectionPoint injectionPoint)
+   {
+      // hmmm, this seems a bit too much like guesswork
+      String name = "WEB-INF/beans.xml";
+      if (resourceLoaderManager.getResource(name) == null)
+      {
+         name = "META-INF/beans.xml";
+      }
+      return resourceLoaderManager.getDescriptor(name, BeansDescriptor.class);
+   }
+   
+   @Produces @Resource("")
+   PersistenceDescriptor loadPersistenceDescriptor(InjectionPoint injectionPoint)
+   {
+      String name = getName(injectionPoint);
+      return resourceLoaderManager.getDescriptor(name, PersistenceDescriptor.class);
+   }
+   
+   @Produces @StandardResource
+   PersistenceDescriptor loadStandardPersistenceDescriptor(InjectionPoint injectionPoint)
+   {
+      return resourceLoaderManager.getDescriptor("META-INF/persistence.xml", PersistenceDescriptor.class);
    }
    
    private String getName(InjectionPoint ip)

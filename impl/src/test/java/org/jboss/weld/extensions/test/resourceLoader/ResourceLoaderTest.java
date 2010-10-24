@@ -20,6 +20,7 @@ package org.jboss.weld.extensions.test.resourceLoader;
 import static org.jboss.weld.extensions.test.util.Deployments.baseDeployment;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,6 +29,7 @@ import java.net.URL;
 import java.util.Properties;
 
 import javax.enterprise.context.spi.CreationalContext;
+import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.BeanManager;
 import javax.inject.Inject;
@@ -35,7 +37,10 @@ import javax.inject.Inject;
 import org.jboss.arquillian.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.shrinkwrap.descriptor.api.spec.cdi.beans.BeansDescriptor;
+import org.jboss.shrinkwrap.descriptor.api.spec.servlet.web.WebAppDescriptor;
 import org.jboss.weld.extensions.resourceLoader.Resource;
+import org.jboss.weld.extensions.resourceLoader.StandardResource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -47,7 +52,8 @@ public class ResourceLoaderTest
    {
       return baseDeployment().addPackage(ResourceLoaderTest.class.getPackage())
          .addResource("com/acme/foo1")
-         .addResource("com/acme/foo2.properties");
+         .addResource("com/acme/foo2.properties")
+         .addResource("com/acme/web.xml");
    }
 
    @Inject
@@ -56,6 +62,12 @@ public class ResourceLoaderTest
    @Inject @Resource("com/acme/foo2.properties")
    Properties foo2;
 
+   @Inject @Resource("com/acme/web.xml")
+   Instance<WebAppDescriptor> webXmlProvider;
+   
+   @Inject @StandardResource
+   Instance<BeansDescriptor> beansXmlProvider;
+   
    @Inject
    BeanManager beanManager;
 
@@ -78,6 +90,32 @@ public class ResourceLoaderTest
       assertEquals(2, foo2.size());
       assertEquals("Pete", foo2.getProperty("name"));
       assertEquals("28", foo2.getProperty("age"));
+   }
+   
+   @Test
+   public void testLoadsWebAppDescriptor() throws Throwable
+   {
+      WebAppDescriptor webXml = webXmlProvider.get();
+      assertNotNull(webXml);
+      assertEquals(1, webXml.getFilters().size());
+      // make sure we can load it a second time
+      // it appears the shrinkwrap classloader can only load a stream once
+//      webXml = webXmlProvider.get();
+//      assertNotNull(webXml);
+//      assertEquals(1, webXml.getFilters().size());
+   }
+   
+   @Test
+   public void testLoadsBeansDescriptor() throws Throwable
+   {
+      BeansDescriptor beansXml = beansXmlProvider.get();
+      assertNotNull(beansXml);
+      assertTrue(beansXml.exportAsString().contains("<beans "));
+      // make sure we can load it a second time
+      // it appears the shrinkwrap classloader can only load a stream once
+//      beansXml = beansXmlProvider.get();
+//      assertNotNull(beansXml);
+//      assertTrue(beansXml.exportAsString().contains("<beans "));
    }
 
    @Test

@@ -135,6 +135,12 @@
          <scope>test</scope>
       </dependency>
 
+      <dependency>
+         <groupId>org.jboss.shrinkwrap.descriptors</groupId>
+         <artifactId>shrinkwrap-descriptors-api</artifactId>
+         <version>1.0.0-alpha-1-SNAPSHOT</version>
+      </dependency>
+
    </dependencies>
 
    <build>

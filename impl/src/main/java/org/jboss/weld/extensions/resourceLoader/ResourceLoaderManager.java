@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import org.jboss.shrinkwrap.descriptor.api.Descriptor;
+import org.jboss.shrinkwrap.descriptor.api.Descriptors;
 import org.jboss.weld.extensions.util.Sortable;
 import org.jboss.weld.extensions.util.service.ServiceLoader;
 
@@ -244,4 +246,86 @@ public class ResourceLoaderManager
       return streams;
    }
 
+   /**
+    * <p>
+    * Load descriptor by resource name.
+    * </p>
+    * 
+    * <p>
+    * The resource loaders will be searched in precedence order, the first
+    * result found being returned. The InputStream is then read in as
+    * a descriptor.
+    * </p>
+    * 
+    * @param name the descriptor resource to load
+    * @return a Descriptor imported from the resource, or <code>null</code> if no
+    *         resource can be loaded
+    * @throws RuntimeException if an error occurs loading the resource
+    */
+   public <D extends Descriptor> D getDescriptor(String name, Class<D> descriptorType)
+   {
+      InputStream is = getResourceAsStream(name);
+      
+      if (is != null)
+      {
+         try
+         {
+            return Descriptors.importAs(descriptorType).from(is);
+         }
+         finally
+         {
+            // NOTE the import process should really be closing the stream
+            try
+            {
+               is.close();
+            }
+            catch (IOException e)
+            {
+               // Nothing we can do about this
+            }
+         }
+      }
+      return null;
+   }
+   
+   /**
+    * <p>
+    * Load all resources known by the resource loader by name.
+    * </p>
+    * 
+    * <p>
+    * The resource loaders will be searched in precedence order. Each InputStream is then read in as
+    * a descriptor and added to the collection. The collection of descriptors is returned.
+    * </p>
+    * 
+    * @param name the descriptor resource to load
+    * @return a collection of descriptors imported from the resource, or an empty collection if no
+    *         resources can be loaded
+    * @throws RuntimeException if an error occurs loading one of the resources
+    */
+   public <D extends Descriptor> Collection<D> getDescriptors(String name, Class<D> descriptorType)
+   {
+      Set<D> descriptors = new HashSet<D>();
+      for (InputStream is : getResourcesAsStream(name))
+      {
+         try
+         {
+            descriptors.add(Descriptors.importAs(descriptorType).from(is));
+         }
+         finally
+         {
+            // NOTE the import process should really be closing the stream
+            try
+            {
+               is.close();
+            }
+            catch (IOException e)
+            {
+               // Nothing we can do about this
+            }
+         }
+      }
+      
+      return descriptors;
+   }
 }
