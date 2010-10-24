@@ -126,7 +126,7 @@ class ResourceProducer
       return resourceLoaderManager.getDescriptor(name, WebAppDescriptor.class);
    }
    
-   @Produces @StandardResource
+   @Produces @Standard
    WebAppDescriptor loadStandardWebAppDescriptor(InjectionPoint injectionPoint)
    {
       return resourceLoaderManager.getDescriptor("WEB-INF/web.xml", WebAppDescriptor.class);
@@ -139,7 +139,7 @@ class ResourceProducer
       return resourceLoaderManager.getDescriptor(name, BeansDescriptor.class);
    }
    
-   @Produces @StandardResource
+   @Produces @Standard
    BeansDescriptor loadStandardBeansDescriptor(InjectionPoint injectionPoint)
    {
       // hmmm, this seems a bit too much like guesswork
@@ -158,7 +158,7 @@ class ResourceProducer
       return resourceLoaderManager.getDescriptor(name, PersistenceDescriptor.class);
    }
    
-   @Produces @StandardResource
+   @Produces @Standard
    PersistenceDescriptor loadStandardPersistenceDescriptor(InjectionPoint injectionPoint)
    {
       return resourceLoaderManager.getDescriptor("META-INF/persistence.xml", PersistenceDescriptor.class);

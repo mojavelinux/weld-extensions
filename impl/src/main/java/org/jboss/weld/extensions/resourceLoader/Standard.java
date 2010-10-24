@@ -63,6 +63,6 @@ import javax.inject.Qualifier;
 @Target({ METHOD, TYPE, FIELD, PARAMETER })
 @Documented
 @Qualifier
-public @interface StandardResource // should it be DefaultResource?
+public @interface Standard
 {
 }

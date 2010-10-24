@@ -40,7 +40,7 @@ import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.descriptor.api.spec.cdi.beans.BeansDescriptor;
 import org.jboss.shrinkwrap.descriptor.api.spec.servlet.web.WebAppDescriptor;
 import org.jboss.weld.extensions.resourceLoader.Resource;
-import org.jboss.weld.extensions.resourceLoader.StandardResource;
+import org.jboss.weld.extensions.resourceLoader.Standard;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -65,7 +65,7 @@ public class ResourceLoaderTest
    @Inject @Resource("com/acme/web.xml")
    Instance<WebAppDescriptor> webXmlProvider;
    
-   @Inject @StandardResource
+   @Inject @Standard
    Instance<BeansDescriptor> beansXmlProvider;
    
    @Inject
