@@ -100,6 +100,7 @@ public class ResourceLoaderTest
       assertEquals(1, webXml.getFilters().size());
       // make sure we can load it a second time
       // it appears the shrinkwrap classloader can only load a stream once
+      // https://jira.jboss.org/browse/SHRINKWRAP-237
 //      webXml = webXmlProvider.get();
 //      assertNotNull(webXml);
 //      assertEquals(1, webXml.getFilters().size());
@@ -113,6 +114,7 @@ public class ResourceLoaderTest
       assertTrue(beansXml.exportAsString().contains("<beans "));
       // make sure we can load it a second time
       // it appears the shrinkwrap classloader can only load a stream once
+      // https://jira.jboss.org/browse/SHRINKWRAP-237
 //      beansXml = beansXmlProvider.get();
 //      assertNotNull(beansXml);
 //      assertTrue(beansXml.exportAsString().contains("<beans "));
